@@ -41,8 +41,42 @@ class Backender {
     }
   }
 
+  // Проверка кода подтверждения, отправленного на email
+  Future<bool> verifyCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$url/auth/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'code': code,
+        }),
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешная верификация
+        print('Verification successful: ${response.body}');
+        return true;
+      } else {
+        // Ошибка верификации
+        print('Verification failed: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error during verification: $e');
+      throw Exception('Failed to verify code: $e');
+    }
+  }
+
   // Авторизация пользователя
-  Future<bool> login({required String id, required String password}) async {
+  Future<bool> login({required String email, required String password}) async {
     try {
       final response = await http.post(
         Uri.parse('$url/auth/login'),
@@ -50,7 +84,7 @@ class Backender {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'netid': id,
+          'email': email,
           'password': password,
         }),
       );
@@ -102,4 +136,5 @@ class Backender {
       throw Exception('Failed to request password reset: $e');
     }
   }
+
 }

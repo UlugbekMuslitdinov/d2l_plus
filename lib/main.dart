@@ -121,32 +121,32 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: 'Выйти из аккаунта',
+            tooltip: 'Logout',
           ),
         ],
       ),
       body: Center(
         child: _selectedIndex == 0
             ? const DashboardContent()
-            : const Text('Другие экраны будут здесь'),
+            : const Text('Other screens will be here'),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
-            label: 'Главная',
+            label: 'Home',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.book),
-            label: 'Курсы',
+            label: 'Courses',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
-            label: 'Календарь',
+            label: 'Calendar',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.notifications),
-            label: 'Уведомления',
+            label: 'Notifications',
           ),
         ],
         currentIndex: _selectedIndex,
@@ -170,7 +170,7 @@ class DashboardContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Добро пожаловать в D2L Plus',
+            'Welcome to D2L Plus',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -179,7 +179,7 @@ class DashboardContent extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Система обучения Университета Аризоны',
+            'University of Arizona Learning System',
             style: TextStyle(
               fontSize: 16,
               color: UAColors.azurite,
@@ -196,17 +196,17 @@ class DashboardContent extends StatelessWidget {
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
             children: [
-              _buildStatCard('Курсы', '5', Icons.book, UAColors.red),
-              _buildStatCard('Непрочитанные', '3', Icons.notifications_active,
-                  UAColors.azurite),
-              _buildStatCard('События', '2', Icons.event, UAColors.blue),
-              _buildStatCard('Задания', '7', Icons.assignment, UAColors.oasis),
+              _buildStatCard('Courses', '5', Icons.book, UAColors.red),
+              _buildStatCard(
+                  'New', '3', Icons.notifications_active, UAColors.azurite),
+              _buildStatCard('Events', '2', Icons.event, UAColors.blue),
+              _buildStatCard('Tasks', '7', Icons.assignment, UAColors.oasis),
             ],
           ),
 
           const SizedBox(height: 24),
           const Text(
-            'Недавняя активность',
+            'Recent Activity',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -253,7 +253,7 @@ class DashboardContent extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -272,37 +272,37 @@ class DashboardContent extends StatelessWidget {
   Widget _buildActivityItem(int index) {
     final List<Map<String, dynamic>> activities = [
       {
-        'title': 'Новое задание',
-        'description': 'Математический анализ - Домашнее задание #5',
-        'time': '2 часа назад',
+        'title': 'New Task',
+        'description': 'Mathematical Analysis - Homework #5',
+        'time': '2 hours ago',
         'icon': Icons.assignment,
         'color': UAColors.red,
       },
       {
-        'title': 'Обновление курса',
-        'description': 'Программирование на Python - Новые материалы',
-        'time': '4 часа назад',
+        'title': 'Course Update',
+        'description': 'Python Programming - New Materials',
+        'time': '4 hours ago',
         'icon': Icons.book,
         'color': UAColors.azurite,
       },
       {
-        'title': 'Комментарий преподавателя',
-        'description': 'Физика - Обратная связь по лабораторной работе',
-        'time': 'Вчера',
+        'title': 'Teacher Comment',
+        'description': 'Physics - Feedback on Lab Work',
+        'time': 'Yesterday',
         'icon': Icons.chat,
         'color': UAColors.blue,
       },
       {
-        'title': 'Новое объявление',
-        'description': 'Химия - Изменение расписания занятий',
-        'time': 'Вчера',
+        'title': 'Announcement',
+        'description': 'Chemistry - Changes to Schedule',
+        'time': 'Yesterday',
         'icon': Icons.announcement,
         'color': UAColors.oasis,
       },
       {
-        'title': 'Оценка за задание',
-        'description': 'История - Итоговая оценка за эссе',
-        'time': '2 дня назад',
+        'title': 'Grading',
+        'description': 'History - Final Essay Grade',
+        'time': '2 days ago',
         'icon': Icons.grading,
         'color': UAColors.leaf,
       },

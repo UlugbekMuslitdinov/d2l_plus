@@ -75,25 +75,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
 
         if (success && mounted) {
-          // Сразу авторизуем пользователя
-          await _storage.logIn(
-            _netIdController.text,
-            password: _passwordController.text,
-          );
+          setState(() {
+            _isLoading = false;
+          });
 
-          // Показываем сообщение об успехе и переходим на экран входа
+          // Показываем снэкбар с информацией об отправке кода
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Registration successful! Please log in.'),
+              content: Text('Verification code has been sent to your email.'),
               backgroundColor: UAColors.azurite,
             ),
           );
 
-          Navigator.pushReplacementNamed(context, '/');
+          // Показываем диалоговое окно для ввода кода подтверждения
+          final verified = await _showVerificationCodeDialog(context);
+
+          if (verified && mounted) {
+            // После успешной верификации авторизуем пользователя
+            await _storage.logIn(
+              _netIdController.text,
+              password: _passwordController.text,
+            );
+
+            // Показываем сообщение об успехе и переходим на экран входа
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Registration successful! You are now logged in.'),
+                backgroundColor: UAColors.azurite,
+              ),
+            );
+
+            // Переходим на главный экран
+            Navigator.pushReplacementNamed(context, '/home');
+          } else if (mounted) {
+            // Если верификация не удалась, показываем сообщение об ошибке
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Verification failed. Please try registering again.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          // Показываем ошибку при неудачной регистрации
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registration failed. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       } catch (e) {
         // Показываем ошибку, если такая есть
         if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Registration failed: ${e.toString()}'),
@@ -101,15 +143,140 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           );
         }
-      } finally {
-        // Сбрасываем состояние загрузки
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
       }
     }
+  }
+
+  // Метод для показа диалогового окна ввода кода верификации
+  Future<bool> _showVerificationCodeDialog(BuildContext context) async {
+    final TextEditingController codeController = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+    bool result = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible:
+          false, // Пользователь не может закрыть диалог, нажав вне его
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text(
+                'Email Verification',
+                style: TextStyle(color: UAColors.blue),
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Please enter the verification code that was sent to your email',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: codeController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Verification Code',
+                        hintText: 'Enter the 6-digit code',
+                        prefixIcon: Icon(
+                          Icons.verified_user,
+                          color: UAColors.azurite,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the verification code';
+                        }
+                        // Можно добавить дополнительную валидацию
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setState(() {
+                              isLoading = true;
+                            });
+
+                            try {
+                              final success = await _backender.verifyCode(
+                                email: _emailController.text,
+                                code: codeController.text,
+                              );
+
+                              result = success;
+
+                              if (success && context.mounted) {
+                                Navigator.of(context).pop();
+                              } else if (context.mounted) {
+                                setState(() {
+                                  isLoading = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Invalid verification code. Please try again.',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                setState(() {
+                                  isLoading = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Verify'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return result;
   }
 
   @override

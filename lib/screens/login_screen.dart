@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
       try {
         // Проверяем учетные данные через бэкенд
         final success = await _backender.login(
-          id: _idController.text,
+          email: _idController.text,
           password: _passwordController.text,
         );
 
