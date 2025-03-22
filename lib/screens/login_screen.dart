@@ -1,5 +1,7 @@
 import 'package:d2l_plus/constants/colors.dart';
 import 'package:d2l_plus/main.dart';
+import 'package:d2l_plus/screens/register_screen.dart';
+import 'package:d2l_plus/tools/backender.dart';
 import 'package:flutter/material.dart';
 
 import '../tools/storage.dart';
@@ -15,6 +17,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final storage = SecureStorage();
+  final _backender = Backender();
   final _formKey = GlobalKey<FormState>();
   final _idController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -38,8 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void checkLogin() async {
     if (await storage.isLogged()) {
       if (mounted) {
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => const HomePage()));
+        Navigator.pushReplacementNamed(context, '/home');
       }
     }
   }
@@ -50,15 +52,49 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      await storage.logIn(_idController.text,
-          password: _passwordController.text);
+      try {
+        // Проверяем учетные данные через бэкенд
+        final success = await _backender.login(
+          id: _idController.text,
+          password: _passwordController.text,
+        );
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => const HomePage()));
+        if (success) {
+          // Сохраняем данные авторизации
+          await storage.logIn(
+            _idController.text,
+            password: _rememberMe ? _passwordController.text : null,
+          );
+
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        } else if (mounted) {
+          // Показываем ошибку при неудачной авторизации
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid credentials. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        // Обрабатываем ошибки сети или другие исключения
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        // Сбрасываем состояние загрузки
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -69,7 +105,6 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: UAColors.coolGray,
       body: Stack(
         children: [
-          // Декоративный элемент в верхней части экрана
           Positioned(
             top: 0,
             left: 0,
@@ -85,7 +120,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
           SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -118,12 +152,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 90,
                               height: 90,
                               decoration: BoxDecoration(
-                                color: UAColors.red,
                                 borderRadius: BorderRadius.circular(15),
                               ),
                               child: Image.asset(
                                 "assets/images/ArizonaWildcatsLogo.png",
-                                scale: 0.5,
                               ),
                             ),
                           ),
@@ -273,7 +305,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const Spacer(),
                               TextButton(
                                 onPressed: () {
-                                  // Функционал "забыли пароль"
+                                  _showForgotPasswordDialog(context);
                                 },
                                 child: const Text(
                                   'Forgot Password?',
@@ -318,6 +350,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ],
                                     ),
                             ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Ссылка на регистрацию
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                'Don\'t have an account?',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/register');
+                                },
+                                child: const Text(
+                                  'Register',
+                                  style: TextStyle(
+                                    color: UAColors.azurite,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -371,6 +426,142 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Метод для показа диалогового окна "Забыли пароль?"
+  void _showForgotPasswordDialog(BuildContext context) {
+    final TextEditingController emailController = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text(
+                'Reset Password',
+                style: TextStyle(color: UAColors.blue),
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Enter your .edu email address to reset your password',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        hintText: 'Enter your .edu email',
+                        prefixIcon: Icon(
+                          Icons.email,
+                          color: UAColors.azurite,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your email';
+                        }
+                        final emailRegex = RegExp(
+                            r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                        if (!emailRegex.hasMatch(value)) {
+                          return 'Please enter a valid email address';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setState(() {
+                              isLoading = true;
+                            });
+
+                            try {
+                              final success = await _backender.resetPassword(
+                                email: emailController.text,
+                              );
+
+                              if (success && context.mounted) {
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Password reset instructions sent to your email',
+                                    ),
+                                    backgroundColor: UAColors.azurite,
+                                  ),
+                                );
+                              } else if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Failed to send reset instructions. Please try again.',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (context.mounted) {
+                                setState(() {
+                                  isLoading = false;
+                                });
+                              }
+                            }
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Reset Password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

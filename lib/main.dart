@@ -1,5 +1,6 @@
 import 'package:d2l_plus/constants/colors.dart';
 import 'package:d2l_plus/screens/login_screen.dart';
+import 'package:d2l_plus/screens/register_screen.dart';
 import 'package:d2l_plus/tools/storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -77,9 +78,12 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const Scaffold(
-        body: LoginScreen(),
-      ),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const Scaffold(body: LoginScreen()),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const HomePage(),
+      },
     );
   }
 }
@@ -104,13 +108,7 @@ class _HomePageState extends State<HomePage> {
   void _logout() async {
     await storage.logOut();
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-            builder: (context) => const Scaffold(
-                  body: LoginScreen(),
-                )),
-      );
+      Navigator.pushReplacementNamed(context, '/');
     }
   }
 
