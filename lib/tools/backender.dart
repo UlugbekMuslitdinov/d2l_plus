@@ -1,9 +1,46 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:d2l_plus/models/course.dart';
 
 class Backender {
   final String url =
       "https://0ksmm3j35f.execute-api.us-east-1.amazonaws.com/dev";
+  final String apiKey = "M85t0SfMm97NrJohjhP0RAxFoz6kKNf1wzvdooO7";
+
+  // Получение курсов пользователя
+  Future<List<Course>> getUserCourses(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$url/enrollments/user/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешный запрос
+        print('Courses retrieved successfully: ${response.body}');
+
+        // Парсим ответ в список курсов
+        final List<dynamic> coursesJson = jsonDecode(response.body);
+        List<Course> courses = coursesJson
+            .map((courseJson) => Course.fromJson(courseJson))
+            .toList();
+        return courses;
+      } else {
+        // Ошибка при получении курсов
+        print(
+            'Failed to retrieve courses: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error retrieving courses: $e');
+      throw Exception('Failed to retrieve courses: $e');
+    }
+  }
 
   // Регистрация пользователя с отправкой POST запроса на сервер
   Future<Map<String, dynamic>> register({
