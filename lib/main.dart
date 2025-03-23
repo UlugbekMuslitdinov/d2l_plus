@@ -11,16 +11,44 @@ import 'package:d2l_plus/tools/backender.dart';
 import 'package:d2l_plus/tools/storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:d2l_plus/services/push_notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Настраиваем стили системного UI
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
 
+  // Запускаем приложение независимо от инициализации Firebase
   runApp(MyApp());
+
+  // Пробуем инициализировать Firebase для уведомлений, но продолжаем работу приложения даже при ошибке
+  try {
+    await _initializeFirebase();
+  } catch (e) {
+    debugPrint('Ошибка инициализации Firebase: $e');
+  }
+}
+
+// Отдельный метод для инициализации Firebase и сервиса уведомлений
+Future<void> _initializeFirebase() async {
+  try {
+    // Инициализируем Firebase
+    await Firebase.initializeApp();
+    debugPrint('Firebase успешно инициализирован');
+
+    // Инициализируем сервис уведомлений
+    final pushNotificationService = PushNotificationService();
+    await pushNotificationService.initialize();
+    debugPrint('Сервис уведомлений успешно инициализирован');
+  } catch (e) {
+    debugPrint('Ошибка при инициализации Firebase или сервиса уведомлений: $e');
+    rethrow; // Передаем ошибку дальше для обработки в main()
+  }
 }
 
 class MyApp extends StatelessWidget {

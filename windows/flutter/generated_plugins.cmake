@@ -3,6 +3,8 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  amplify_db_common
+  firebase_core
   flutter_secure_storage_windows
 )
 

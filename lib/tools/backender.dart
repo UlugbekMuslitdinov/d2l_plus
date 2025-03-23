@@ -5,6 +5,7 @@ import 'package:d2l_plus/models/assignment.dart';
 import 'package:d2l_plus/models/announcement.dart';
 import 'package:d2l_plus/models/grade.dart';
 import 'package:d2l_plus/models/course_ranking.dart';
+import 'dart:io';
 
 class Backender {
   final String url =
@@ -480,6 +481,78 @@ class Backender {
       // Обрабатываем ошибки сети или другие исключения
       print('Error retrieving rankings: $e');
       throw Exception('Failed to retrieve course rankings: $e');
+    }
+  }
+
+  // Метод для регистрации токена устройства на сервере
+  Future<bool> registerDeviceToken(String token) async {
+    try {
+      // Для упрощения примера отправляем только токен
+      // В реальном приложении нужно добавить userId
+      final response = await http.post(
+        Uri.parse('$url/notifications/register'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: jsonEncode({
+          'token': token,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('Токен устройства успешно зарегистрирован');
+        return true;
+      } else {
+        print(
+            'Ошибка при регистрации токена: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Исключение при регистрации токена: $e');
+      return false;
+    }
+  }
+
+  // Метод для отправки тестового уведомления (только для разработки)
+  Future<bool> sendNotification({
+    required String title,
+    required String body,
+    required String token,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      final Map<String, dynamic> payload = {
+        'title': title,
+        'body': body,
+        'token': token,
+      };
+
+      if (data != null) {
+        payload['data'] = data;
+      }
+
+      final response = await http.post(
+        Uri.parse('$url/notifications/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        print('Тестовое уведомление отправлено');
+        return true;
+      } else {
+        print(
+            'Ошибка при отправке уведомления: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Исключение при отправке уведомления: $e');
+      return false;
     }
   }
 }

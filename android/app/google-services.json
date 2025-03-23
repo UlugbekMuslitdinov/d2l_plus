@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1084664652172",
+    "project_id": "d2l-plus",
+    "storage_bucket": "d2l-plus.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1084664652172:android:0321a4ed1bbf81ca3836a9",
+        "android_client_info": {
+          "package_name": "dev.umuslitdinov.d2l_plus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAACxr3gzcZWcDYt20JOH_F9IkzUboRZVo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
