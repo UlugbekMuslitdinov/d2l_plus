@@ -68,11 +68,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       try {
         // Отправляем запрос на регистрацию
-        final success = await _backender.register(
+        final result = await _backender.register(
           email: _emailController.text,
           password: _passwordController.text,
           netId: _netIdController.text,
         );
+
+        final bool success = result['success'] ?? false;
+        final String userId = result['userId'] ?? '';
 
         if (success && mounted) {
           setState(() {
@@ -93,8 +96,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (verified && mounted) {
             // После успешной верификации авторизуем пользователя
             await _storage.logIn(
-              _netIdController.text,
+              _emailController.text,
               password: _passwordController.text,
+              userId: userId,
             );
 
             // Показываем сообщение об успехе и переходим на экран входа

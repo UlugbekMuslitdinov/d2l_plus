@@ -53,24 +53,25 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        // Проверяем учетные данные через бэкенд
-        final success = await _backender.login(
+        final result = await _backender.login(
           email: _idController.text,
           password: _passwordController.text,
         );
 
+        final bool success = result['success'] ?? false;
+        final String userId = result['userId'] ?? '';
+
         if (success) {
-          // Сохраняем данные авторизации
           await storage.logIn(
             _idController.text,
             password: _rememberMe ? _passwordController.text : null,
+            userId: userId,
           );
 
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/home');
           }
         } else if (mounted) {
-          // Показываем ошибку при неудачной авторизации
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Invalid credentials. Please try again.'),
@@ -79,7 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } catch (e) {
-        // Обрабатываем ошибки сети или другие исключения
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -89,7 +89,6 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } finally {
-        // Сбрасываем состояние загрузки
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -128,7 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 30),
-                  // Логотип и название
                   Center(
                     child: Column(
                       children: [
@@ -181,7 +179,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 50),
-                  // Карточка входа
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(

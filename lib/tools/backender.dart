@@ -3,10 +3,10 @@ import 'package:http/http.dart' as http;
 
 class Backender {
   final String url =
-      "https://owk3h0rnlk.execute-api.us-east-1.amazonaws.com/dev";
+      "https://0ksmm3j35f.execute-api.us-east-1.amazonaws.com/dev";
 
   // Регистрация пользователя с отправкой POST запроса на сервер
-  Future<bool> register({
+  Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String netId,
@@ -28,11 +28,19 @@ class Backender {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         // Успешная регистрация
         print('Registration successful: ${response.body}');
-        return true;
+
+        // Парсим ответ, чтобы получить userId
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final String userId = responseData['userId'] ?? '';
+
+        return {
+          'success': true,
+          'userId': userId,
+        };
       } else {
         // Ошибка регистрации
         print('Registration failed: ${response.statusCode} - ${response.body}');
-        return false;
+        return {'success': false};
       }
     } catch (e) {
       // Обрабатываем ошибки сети или другие исключения
@@ -76,7 +84,8 @@ class Backender {
   }
 
   // Авторизация пользователя
-  Future<bool> login({required String email, required String password}) async {
+  Future<Map<String, dynamic>> login(
+      {required String email, required String password}) async {
     try {
       final response = await http.post(
         Uri.parse('$url/auth/login'),
@@ -93,11 +102,25 @@ class Backender {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         // Успешная авторизация
         print('Login successful: ${response.body}');
-        return true;
+
+        // Парсим ответ для получения userId, если он есть
+        Map<String, dynamic> responseData = {};
+        try {
+          responseData = jsonDecode(response.body);
+        } catch (e) {
+          print('Error parsing response: $e');
+        }
+
+        final String userId = responseData['userId'] ?? '';
+
+        return {
+          'success': true,
+          'userId': userId,
+        };
       } else {
         // Ошибка авторизации
         print('Login failed: ${response.statusCode} - ${response.body}');
-        return false;
+        return {'success': false};
       }
     } catch (e) {
       // Обрабатываем ошибки сети или другие исключения
@@ -136,5 +159,4 @@ class Backender {
       throw Exception('Failed to request password reset: $e');
     }
   }
-
 }

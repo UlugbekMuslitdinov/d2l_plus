@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Устанавливаем цвет статус-бара
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -22,7 +21,6 @@ class MyApp extends StatelessWidget {
 
   final storage = SecureStorage();
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -187,7 +185,6 @@ class DashboardContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Статистика
           GridView.count(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
