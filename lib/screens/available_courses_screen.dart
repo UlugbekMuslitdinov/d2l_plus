@@ -1,5 +1,6 @@
 import 'package:d2l_plus/constants/colors.dart';
 import 'package:d2l_plus/models/course.dart';
+import 'package:d2l_plus/models/course_ranking.dart';
 import 'package:d2l_plus/tools/backender.dart';
 import 'package:d2l_plus/tools/storage.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
   final _storage = SecureStorage();
   List<Course> _availableCourses = [];
   List<Course> _userCourses = [];
+  Map<String, CourseRanking> _courseRankings = {};
   bool _isLoading = true;
   String _error = '';
   String? _userId;
@@ -55,6 +57,14 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
       // Получаем список курсов пользователя
       final userCourses = await _backender.getUserCourses(userId);
 
+      // Получаем рейтинги курсов
+      final rankings = await _backender.getCourseRankings();
+
+      // Создаем Map для быстрого доступа к рейтингам по ID курса
+      final rankingsMap = {
+        for (var ranking in rankings) ranking.courseId: ranking
+      };
+
       // Фильтруем курсы, на которые пользователь еще не записан
       final availableCourses = allCourses.where((course) {
         return !userCourses.any((userCourse) => userCourse.id == course.id);
@@ -63,12 +73,13 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
       setState(() {
         _availableCourses = availableCourses;
         _userCourses = userCourses;
+        _courseRankings = rankingsMap;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = 'Failed to load courses: ${e.toString()}';
+        _error = 'Unable to load courses: ${e.toString()}';
       });
     }
   }
@@ -104,7 +115,8 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Successfully enrolled in "${course.title}"'),
+              content: Text(
+                  'You have successfully enrolled in the course "${course.title}"'),
               backgroundColor: UAColors.azurite,
             ),
           );
@@ -116,7 +128,7 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to enroll in the course. Please try again.'),
+            content: Text('Unable to enroll in the course. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -141,7 +153,7 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Available Courses'),
+        title: const Text('Available courses'),
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -166,7 +178,7 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadData,
-                          child: const Text('Try Again'),
+                          child: const Text('Try again'),
                         ),
                       ],
                     ),
@@ -192,7 +204,7 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'You are already enrolled in all courses',
+                              'You are already enrolled in all available courses',
                               style: TextStyle(color: Colors.grey),
                             ),
                           ],
@@ -210,6 +222,9 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
   }
 
   Widget _buildCourseCard(Course course) {
+    // Получаем рейтинг курса, если есть
+    final ranking = _courseRankings[course.id];
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -266,6 +281,33 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
                     ],
                   ),
                 ),
+                if (ranking != null) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.star,
+                          color: _getRatingColor(ranking.rank),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${ranking.rank}/5',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -276,84 +318,74 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Информация о преподавателе
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person,
-                      color: UAColors.azurite,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Professor ID:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: UAColors.azurite,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        course.professorId,
-                        style: const TextStyle(color: Colors.grey),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
                 // Список лекций
-                if (course.lectures.isNotEmpty) ...[
-                  const Text(
-                    'Lectures:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: UAColors.blue,
-                      fontSize: 16,
-                    ),
+                const Text(
+                  'Lectures:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: UAColors.blue,
+                    fontSize: 16,
                   ),
-                  const SizedBox(height: 8),
-                  ...course.lectures.map((lecture) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: UAColors.red,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                lecture,
-                                style: const TextStyle(fontSize: 15),
+                ),
+                const SizedBox(height: 8),
+                ...course.lectures
+                    .map((lecture) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle,
+                                color: UAColors.red,
+                                size: 16,
                               ),
-                            ),
-                          ],
-                        ),
-                      ))
-                ],
-
-                if (course.lectures.isEmpty) ...[
-                  const Text(
-                    'No lectures available yet',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  lecture,
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ))
+                    .toList(),
 
                 const SizedBox(height: 16),
-                // Кнопка регистрации
+
+                // Информация о рейтинге
+                if (ranking != null) ...[
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Text(
+                        'Course rating: ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: UAColors.blue,
+                        ),
+                      ),
+                      _buildRatingStars(ranking.rank),
+                      const Spacer(),
+                      Text(
+                        '${ranking.numberOfVotes} ${_getVotesText(ranking.numberOfVotes)}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Кнопка "Записаться"
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () => _enrollCourse(course),
                     icon: const Icon(Icons.add_circle),
-                    label: const Text('Enroll in Course'),
+                    label: const Text('Enroll in the course'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: UAColors.red,
                       foregroundColor: Colors.white,
@@ -367,5 +399,37 @@ class _AvailableCoursesScreenState extends State<AvailableCoursesScreen> {
         ],
       ),
     );
+  }
+
+  // Создает виджет с отображением звезд рейтинга
+  Widget _buildRatingStars(int rating) {
+    return Row(
+      children: List.generate(5, (index) {
+        return Icon(
+          index < rating ? Icons.star : Icons.star_border,
+          color: _getRatingColor(rating),
+          size: 18,
+        );
+      }),
+    );
+  }
+
+  // Возвращает цвет в зависимости от рейтинга
+  Color _getRatingColor(int rating) {
+    if (rating >= 4) return Colors.green;
+    if (rating >= 3) return Colors.orange;
+    return Colors.red;
+  }
+
+  // Возвращает правильное склонение слова "голос"
+  String _getVotesText(int votes) {
+    if (votes % 10 == 1 && votes % 100 != 11) {
+      return 'vote';
+    } else if ((votes % 10 >= 2 && votes % 10 <= 4) &&
+        (votes % 100 < 10 || votes % 100 >= 20)) {
+      return 'votes';
+    } else {
+      return 'votes';
+    }
   }
 }

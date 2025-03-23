@@ -4,6 +4,7 @@ import 'package:d2l_plus/models/course.dart';
 import 'package:d2l_plus/models/assignment.dart';
 import 'package:d2l_plus/models/announcement.dart';
 import 'package:d2l_plus/models/grade.dart';
+import 'package:d2l_plus/models/course_ranking.dart';
 
 class Backender {
   final String url =
@@ -443,6 +444,42 @@ class Backender {
       // Обрабатываем ошибки сети или другие исключения
       print('Error retrieving course grades: $e');
       throw Exception('Failed to retrieve course grades: $e');
+    }
+  }
+
+  // Загрузка рейтингов курсов
+  Future<List<CourseRanking>> getCourseRankings() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$url/rankings/courses'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешный запрос
+        print('Rankings retrieved successfully: ${response.body}');
+
+        // Парсим ответ в список рейтингов
+        final List<dynamic> rankingsJson = jsonDecode(response.body);
+        List<CourseRanking> rankings = rankingsJson
+            .map((rankingJson) => CourseRanking.fromJson(rankingJson))
+            .toList();
+
+        return rankings;
+      } else {
+        // Ошибка при получении рейтингов
+        print(
+            'Failed to retrieve rankings: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error retrieving rankings: $e');
+      throw Exception('Failed to retrieve course rankings: $e');
     }
   }
 }

@@ -218,8 +218,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _idController,
                             decoration: InputDecoration(
-                              labelText: 'Student ID',
-                              hintText: 'Enter your student ID',
+                              labelText: 'Email',
+                              hintText: 'Enter your email',
                               filled: true,
                               fillColor: UAColors.coolGray.withOpacity(0.3),
                               border: OutlineInputBorder(
@@ -231,10 +231,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: UAColors.azurite,
                               ),
                             ),
-                            keyboardType: TextInputType.number,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter your student ID';
+                                return 'Please enter your email';
                               }
                               return null;
                             },

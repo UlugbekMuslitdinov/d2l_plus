@@ -55,7 +55,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (userId == null || userId.isEmpty) {
         setState(() {
           _isLoading = false;
-          _error = 'ID пользователя не найден. Пожалуйста, войдите снова.';
+          _error = 'User ID not found. Please log in again.';
         });
         return;
       }
@@ -124,7 +124,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = 'Не удалось загрузить данные: ${e.toString()}';
+        _error = 'Unable to load data: ${e.toString()}';
       });
     }
   }
@@ -215,7 +215,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Календарь',
+              'Calendar',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -224,7 +224,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Просмотр расписания занятий и дедлайнов',
+              'Viewing the schedule of classes and deadlines',
               style: TextStyle(
                 fontSize: 16,
                 color: UAColors.azurite,
@@ -259,7 +259,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadData,
-                              child: const Text('Попробовать снова'),
+                              child: const Text('Try again'),
                             ),
                           ],
                         ),
@@ -337,7 +337,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 8.0),
                                   child: Text(
-                                    'События на ${DateFormat('dd MMMM yyyy').format(_selectedDay!)}',
+                                    'Events on ${DateFormat('dd MMMM yyyy').format(_selectedDay!)}',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -374,7 +374,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       const Padding(
         padding: EdgeInsets.only(top: 16.0, bottom: 8.0),
         child: Text(
-          'Занятия:',
+          'Classes:',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -399,7 +399,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       const Padding(
         padding: EdgeInsets.only(top: 16.0, bottom: 8.0),
         child: Text(
-          'Дедлайны:',
+          'Deadlines:',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,

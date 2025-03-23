@@ -337,7 +337,7 @@ class _DeadlinesScreenState extends State<DeadlinesScreen> {
                       onPressed: () {
                         // Действие для отправки задания
                       },
-                      icon: const Icon(Icons.upload_file),
+                      icon: const Icon(Icons.upload_file, color: Colors.white),
                       label: const Text('Submit'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: UAColors.red,

@@ -411,7 +411,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                               ._openAvailableCourses();
                         }
                       },
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(Icons.add, color: Colors.white),
                       label: const Text('Enroll'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: UAColors.red,
@@ -637,7 +637,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.login),
+                      icon: const Icon(Icons.login, color: Colors.white),
                       label: const Text('Enter Course'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: UAColors.red,
