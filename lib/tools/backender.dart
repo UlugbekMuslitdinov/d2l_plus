@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:d2l_plus/models/course.dart';
 import 'package:d2l_plus/models/assignment.dart';
+import 'package:d2l_plus/models/announcement.dart';
+import 'package:d2l_plus/models/grade.dart';
 
 class Backender {
   final String url =
@@ -346,8 +348,6 @@ class Backender {
         },
       );
 
-
-
       // Проверяем статус ответа
       if (response.statusCode >= 200 && response.statusCode < 300) {
         // Успешный запрос
@@ -366,6 +366,83 @@ class Backender {
       // Обрабатываем ошибки сети или другие исключения
       print('Error retrieving enrollments: $e');
       throw Exception('Failed to retrieve enrollments: $e');
+    }
+  }
+
+  // Получение объявлений для курса
+  Future<List<Announcement>> getCourseAnnouncements(String courseId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$url/announcements/course/$courseId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешный запрос
+        print('Announcements retrieved successfully: ${response.body}');
+
+        // Парсим ответ в список объявлений
+        final List<dynamic> announcementsJson = jsonDecode(response.body);
+        List<Announcement> announcements = announcementsJson
+            .map((announceJson) => Announcement.fromJson(announceJson))
+            .toList();
+
+        // Сортируем объявления по времени (новые сначала)
+        announcements.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+
+        return announcements;
+      } else {
+        // Ошибка при получении объявлений
+        print(
+            'Failed to retrieve announcements: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error retrieving course announcements: $e');
+      throw Exception('Failed to retrieve course announcements: $e');
+    }
+  }
+
+  // Получение оценок пользователя по конкретному курсу
+  Future<List<Grade>> getCourseGrades(String courseId, String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$url/grades/course?courseId=$courseId&userId=$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешный запрос
+        print('Grades retrieved successfully: ${response.body}');
+
+        // Парсим ответ в список оценок
+        final List<dynamic> gradesJson = jsonDecode(response.body);
+        List<Grade> grades =
+            gradesJson.map((gradeJson) => Grade.fromJson(gradeJson)).toList();
+
+        // Сортируем оценки по дате (новые сначала)
+        grades.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+
+        return grades;
+      } else {
+        // Ошибка при получении оценок
+        print(
+            'Failed to retrieve grades: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error retrieving course grades: $e');
+      throw Exception('Failed to retrieve course grades: $e');
     }
   }
 }

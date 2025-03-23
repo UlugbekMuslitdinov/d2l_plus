@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class Assignment {
   final String id;
   final String title;
@@ -50,5 +52,10 @@ class Assignment {
     final now = DateTime.now();
     final diff = deadline.difference(now).inDays;
     return diff >= 0 && diff <= 3 && !isOverdue;
+  }
+
+  // Возвращает отформатированную дату дедлайна
+  String get formattedDate {
+    return DateFormat('dd MMMM yyyy, HH:mm').format(deadline);
   }
 }

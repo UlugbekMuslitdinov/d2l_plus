@@ -6,6 +6,7 @@ import 'package:d2l_plus/screens/calendar_screen.dart';
 import 'package:d2l_plus/screens/deadlines_screen.dart';
 import 'package:d2l_plus/screens/login_screen.dart';
 import 'package:d2l_plus/screens/register_screen.dart';
+import 'package:d2l_plus/screens/course_details_screen.dart';
 import 'package:d2l_plus/tools/backender.dart';
 import 'package:d2l_plus/tools/storage.dart';
 import 'package:flutter/material.dart';
@@ -581,7 +582,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
               children: [
                 // Список лекций
                 const Text(
-                  'Лекции:',
+                  'Lectures:',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: UAColors.blue,
@@ -628,6 +629,13 @@ class _CoursesScreenState extends State<CoursesScreen> {
                     ElevatedButton.icon(
                       onPressed: () {
                         // Действие для перехода к курсу
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CourseDetailsScreen(course: course),
+                          ),
+                        );
                       },
                       icon: const Icon(Icons.login),
                       label: const Text('Enter Course'),
@@ -1134,6 +1142,13 @@ class _DashboardContentState extends State<DashboardContent> {
                 TextButton.icon(
                   onPressed: () {
                     // Действие при нажатии "View Details"
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            CourseDetailsScreen(course: course),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.visibility, color: UAColors.azurite),
                   label: const Text(
