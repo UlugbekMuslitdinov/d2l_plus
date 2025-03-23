@@ -6,6 +6,12 @@ import 'package:d2l_plus/tools/storage.dart';
 class ChatBotScreen extends StatefulWidget {
   const ChatBotScreen({Key? key}) : super(key: key);
 
+  // Статическое хранилище сообщений, сохраняющееся между перестроениями экрана
+  static List<ChatMessage> _chatHistory = [];
+
+  // Флаг, указывающий, была ли инициализирована история чата
+  static bool _isInitialized = false;
+
   @override
   State<ChatBotScreen> createState() => _ChatBotScreenState();
 }
@@ -15,7 +21,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   final _storage = SecureStorage();
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
   bool _isLoading = false;
   String? _userId;
 
@@ -24,14 +29,23 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     super.initState();
     _loadUserId();
 
-    // Добавляем приветственное сообщение от ассистента
-    _messages.add(
-      ChatMessage(
-        text:
-            'Hi, I am D2L Plus assistant. How can I help you? You can ask me about your courses, assignments, deadlines or other information.',
-        sender: MessageSender.assistant,
-      ),
-    );
+    // Инициализируем чат только при первом запуске
+    if (!ChatBotScreen._isInitialized) {
+      // Добавляем приветственное сообщение от ассистента
+      ChatBotScreen._chatHistory.add(
+        ChatMessage(
+          text:
+              'Hi, I am D2L Plus assistant. How can I help you? You can ask me about your courses, assignments, deadlines or other information.',
+          sender: MessageSender.assistant,
+        ),
+      );
+      ChatBotScreen._isInitialized = true;
+    }
+
+    // Прокручиваем список к последнему сообщению при загрузке
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
   }
 
   @override
@@ -39,6 +53,17 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Метод для прокрутки списка к последнему сообщению
+  void _scrollToBottom() {
+    if (_scrollController.hasClients && ChatBotScreen._chatHistory.isNotEmpty) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _loadUserId() async {
@@ -59,7 +84,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     if (text.isEmpty) return;
 
     setState(() {
-      _messages.add(
+      ChatBotScreen._chatHistory.add(
         ChatMessage(
           text: text,
           sender: MessageSender.user,
@@ -71,13 +96,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
     // Прокручиваем список к последнему сообщению
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      _scrollToBottom();
     });
 
     try {
@@ -93,7 +112,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
       // Обрабатываем ответ
       setState(() {
-        _messages.add(
+        ChatBotScreen._chatHistory.add(
           ChatMessage(
             text: response['message'] ?? 'Sorry, I couldn\'t get the answer.',
             sender: MessageSender.assistant,
@@ -104,17 +123,11 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
       // Прокручиваем список к последнему сообщению
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
+        _scrollToBottom();
       });
     } catch (e) {
       setState(() {
-        _messages.add(
+        ChatBotScreen._chatHistory.add(
           ChatMessage(
             text:
                 'An error occurred while sending the message: ${e.toString()}',
@@ -127,27 +140,69 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     }
   }
 
+  // Метод для очистки истории чата
+  void _clearChat() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Chat History'),
+        content: const Text(
+            'Are you sure you want to clear the entire chat history?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                // Сохраняем только приветственное сообщение
+                ChatBotScreen._chatHistory = [
+                  ChatMessage(
+                    text:
+                        'Hi, I am D2L Plus assistant. How can I help you? You can ask me about your courses, assignments, deadlines or other information.',
+                    sender: MessageSender.assistant,
+                  ),
+                ];
+              });
+              Navigator.of(context).pop();
+            },
+            child: const Text('CLEAR', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('D2L Plus Assistant'),
         backgroundColor: UAColors.blue,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: 'Clear chat history',
+            onPressed: _clearChat,
+          ),
+        ],
       ),
       body: Column(
         children: [
           // Область сообщений
           Expanded(
-            child: _messages.isEmpty
+            child: ChatBotScreen._chatHistory.isEmpty
                 ? const Center(
                     child: Text('No messages'),
                   )
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
+                    itemCount: ChatBotScreen._chatHistory.length,
                     itemBuilder: (context, index) {
-                      return _buildMessageItem(_messages[index]);
+                      return _buildMessageItem(
+                          ChatBotScreen._chatHistory[index]);
                     },
                   ),
           ),
