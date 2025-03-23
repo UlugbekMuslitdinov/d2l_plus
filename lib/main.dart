@@ -148,6 +148,17 @@ class _HomePageState extends State<HomePage> {
     Navigator.pushReplacementNamed(context, '/');
   }
 
+  void _openAvailableCourses() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AvailableCoursesScreen(
+          onCourseEnrolled: _loadUserCourses,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -227,7 +238,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class CoursesScreen extends StatelessWidget {
+class CoursesScreen extends StatefulWidget {
   final List<Course> courses;
   final bool isLoading;
   final String error;
@@ -242,126 +253,262 @@ class CoursesScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        onRefresh();
-      },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'My Courses',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: UAColors.blue,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (context.findAncestorStateOfType<_HomePageState>() !=
-                        null) {
-                      context
-                          .findAncestorStateOfType<_HomePageState>()!
-                          ._onItemTapped(1);
-                    }
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Enroll'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: UAColors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Access all your enrolled courses',
-              style: TextStyle(
-                fontSize: 16,
-                color: UAColors.azurite,
-              ),
-            ),
-            const SizedBox(height: 24),
+  State<CoursesScreen> createState() => _CoursesScreenState();
+}
 
-            // Отображение курсов или индикатора загрузки
-            isLoading
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator(),
+class _CoursesScreenState extends State<CoursesScreen> {
+  final _backender = Backender();
+  final _storage = SecureStorage();
+  bool _isProcessing = false;
+  String? _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    try {
+      final userId = await _storage.getUserId();
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _userId = userId;
+        });
+      }
+    } catch (e) {
+      print('Error loading user ID: $e');
+    }
+  }
+
+  Future<void> _dropCourse(Course course) async {
+    if (_userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User ID not found. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Получаем ID регистрации для данного курса
+    final enrollmentId = course.enrollmentId;
+    if (enrollmentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enrollment ID not found for this course.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Показываем диалог подтверждения
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Drop Class'),
+            content: Text('Are you sure you want to drop "${course.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('CANCEL'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('DROP', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    try {
+      setState(() {
+        _isProcessing = true;
+      });
+
+      final success = await _backender.dropCourse(enrollmentId);
+
+      if (success) {
+        // Обновляем список курсов
+        widget.onRefresh();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully dropped "${course.title}"'),
+              backgroundColor: UAColors.blue,
+            ),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to drop the course. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: () async {
+            widget.onRefresh();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'My Courses',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: UAColors.blue,
+                      ),
                     ),
-                  )
-                : error.isNotEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              error,
-                              style: const TextStyle(color: Colors.red),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: onRefresh,
-                              child: const Text('Try Again'),
-                            ),
-                          ],
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        if (context.findAncestorStateOfType<_HomePageState>() !=
+                            null) {
+                          print("Button pressed");
+                          context
+                              .findAncestorStateOfType<_HomePageState>()!
+                              ._openAvailableCourses();
+                        }
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Enroll'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: UAColors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Access all your enrolled courses',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: UAColors.azurite,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Отображение курсов или индикатора загрузки
+                widget.isLoading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(),
                         ),
                       )
-                    : courses.isEmpty
+                    : widget.error.isNotEmpty
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(
-                                  Icons.school_outlined,
-                                  color: Colors.grey,
-                                  size: 64,
+                                  Icons.error_outline,
+                                  color: Colors.red,
+                                  size: 48,
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
-                                  'No courses found',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                  ),
+                                Text(
+                                  widget.error,
+                                  style: const TextStyle(color: Colors.red),
+                                  textAlign: TextAlign.center,
                                 ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Enroll in courses to see them here',
-                                  style: TextStyle(color: Colors.grey),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: widget.onRefresh,
+                                  child: const Text('Try Again'),
                                 ),
                               ],
                             ),
                           )
-                        : ListView.builder(
-                            physics: const NeverScrollableScrollPhysics(),
-                            shrinkWrap: true,
-                            itemCount: courses.length,
-                            itemBuilder: (context, index) {
-                              return _buildDetailedCourseCard(courses[index]);
-                            },
-                          ),
-          ],
+                        : widget.courses.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.school_outlined,
+                                      color: Colors.grey,
+                                      size: 64,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'No courses found',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Enroll in courses to see them here',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                physics: const NeverScrollableScrollPhysics(),
+                                shrinkWrap: true,
+                                itemCount: widget.courses.length,
+                                itemBuilder: (context, index) {
+                                  return _buildDetailedCourseCard(
+                                      widget.courses[index]);
+                                },
+                              ),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (_isProcessing)
+          Container(
+            color: Colors.black.withOpacity(0.3),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+      ],
     );
   }
 
@@ -470,13 +617,11 @@ class CoursesScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () {
-                        // Действие для открытия материалов
-                      },
-                      icon: const Icon(Icons.menu_book),
-                      label: const Text('Materials'),
+                      onPressed: () => _dropCourse(course),
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      label: const Text('Drop'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: UAColors.azurite,
+                        foregroundColor: Colors.red,
                       ),
                     ),
                     const SizedBox(width: 8),

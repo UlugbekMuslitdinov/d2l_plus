@@ -305,4 +305,67 @@ class Backender {
       throw Exception('Failed to retrieve deadlines: $e');
     }
   }
+
+  // Отписка от курса (удаление регистрации)
+  Future<bool> dropCourse(String enrollId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$url/enrollments/$enrollId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешное удаление курса
+        print('Course dropped successfully: ${response.body}');
+        return true;
+      } else {
+        // Ошибка при удалении курса
+        print(
+            'Failed to drop course: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error dropping course: $e');
+      throw Exception('Failed to drop course: $e');
+    }
+  }
+
+  // Получение списка регистраций пользователя на курсы с ID регистрации
+  Future<List<Map<String, dynamic>>> getUserEnrollments(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$url/enrollments/user/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      );
+
+
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешный запрос
+        print('Enrollments retrieved successfully: ${response.body}');
+
+        // Парсим ответ в список регистраций
+        final List<dynamic> enrollmentsJson = jsonDecode(response.body);
+        return enrollmentsJson.cast<Map<String, dynamic>>();
+      } else {
+        // Ошибка при получении регистраций
+        print(
+            'Failed to retrieve enrollments: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error retrieving enrollments: $e');
+      throw Exception('Failed to retrieve enrollments: $e');
+    }
+  }
 }

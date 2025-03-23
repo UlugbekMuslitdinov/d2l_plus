@@ -18,6 +18,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final _backender = Backender();
   final _storage = SecureStorage();
   List<Assignment> _deadlines = [];
+  List<Course> _courses = [];
   Map<String, Course> _coursesMap = {};
   bool _isLoading = true;
   String _error = '';
@@ -29,6 +30,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   // Для хранения заданий по датам
   Map<DateTime, List<Assignment>> _eventsByDate = {};
+
+  // Для хранения дней занятий
+  Map<DateTime, List<Course>> _classesByDate = {};
+
+  // Для хранения всех событий (занятия + дедлайны)
+  Map<DateTime, List<dynamic>> _allEventsByDate = {};
 
   @override
   void initState() {
@@ -80,10 +87,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
         eventsByDate[date]!.add(assignment);
       }
 
+      // Организуем занятия по датам для календаря
+      final classesByDate = _generateClassDates(courses);
+
+      // Объединяем все события
+      final allEventsByDate = <DateTime, List<dynamic>>{};
+
+      // Добавляем дедлайны
+      eventsByDate.forEach((date, assignments) {
+        if (allEventsByDate[date] == null) {
+          allEventsByDate[date] = [];
+        }
+        allEventsByDate[date]!.addAll(assignments);
+      });
+
+      // Добавляем занятия
+      classesByDate.forEach((date, courses) {
+        if (allEventsByDate[date] == null) {
+          allEventsByDate[date] = [];
+        }
+        allEventsByDate[date]!.addAll(courses);
+      });
+
       setState(() {
         _deadlines = deadlines;
+        _courses = courses;
         _coursesMap = coursesMap;
         _eventsByDate = eventsByDate;
+        _classesByDate = classesByDate;
+        _allEventsByDate = allEventsByDate;
         _isLoading = false;
 
         // Устанавливаем выбранный день как сегодня
@@ -97,11 +129,79 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // Получение списка заданий для выбранного дня
-  List<Assignment> _getEventsForDay(DateTime day) {
+  // Генерирует даты занятий на текущий месяц
+  Map<DateTime, List<Course>> _generateClassDates(List<Course> courses) {
+    final classesByDate = <DateTime, List<Course>>{};
+
+    // Получаем начало и конец месяца для генерации дат
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, 1);
+    final endDate =
+        DateTime(now.year, now.month + 3, 0); // Генерируем на 3 месяца вперед
+
+    // Мапа для перевода дней недели из строки в число (1 = понедельник, 7 = воскресенье)
+    final weekdayMap = {
+      'Monday': 1,
+      'Tuesday': 2,
+      'Wednesday': 3,
+      'Thursday': 4,
+      'Friday': 5,
+      'Saturday': 6,
+      'Sunday': 7,
+    };
+
+    // Для каждого курса создаем даты занятий на выбранный период
+    for (var course in courses) {
+      // Для каждого дня недели
+      for (var weekday in course.weekdays) {
+        // Получаем номер дня недели
+        final weekdayNum = weekdayMap[weekday] ?? 1;
+
+        // Находим первое занятие в месяце для этого дня недели
+        var classDate = startDate;
+        while (classDate.weekday != weekdayNum) {
+          classDate = classDate.add(const Duration(days: 1));
+        }
+
+        // Генерируем все даты занятий до конца периода
+        while (classDate.isBefore(endDate)) {
+          final normalizedDate =
+              DateTime(classDate.year, classDate.month, classDate.day);
+
+          if (classesByDate[normalizedDate] == null) {
+            classesByDate[normalizedDate] = [];
+          }
+
+          classesByDate[normalizedDate]!.add(course);
+
+          // Следующее занятие через неделю
+          classDate = classDate.add(const Duration(days: 7));
+        }
+      }
+    }
+
+    return classesByDate;
+  }
+
+  // Получение списка событий для выбранного дня
+  List<dynamic> _getEventsForDay(DateTime day) {
+    // Нормализуем дату (убираем время)
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    return _allEventsByDate[normalizedDay] ?? [];
+  }
+
+  // Получение списка дедлайнов для выбранного дня
+  List<Assignment> _getDeadlinesForDay(DateTime day) {
     // Нормализуем дату (убираем время)
     final normalizedDay = DateTime(day.year, day.month, day.day);
     return _eventsByDate[normalizedDay] ?? [];
+  }
+
+  // Получение списка занятий для выбранного дня
+  List<Course> _getClassesForDay(DateTime day) {
+    // Нормализуем дату (убираем время)
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    return _classesByDate[normalizedDay] ?? [];
   }
 
   @override
@@ -115,7 +215,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Календарь дедлайнов',
+              'Календарь',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -124,7 +224,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Просмотр предстоящих дедлайнов в календаре',
+              'Просмотр расписания занятий и дедлайнов',
               style: TextStyle(
                 fontSize: 16,
                 color: UAColors.azurite,
@@ -198,7 +298,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   _focusedDay = focusedDay;
                                 },
                                 calendarStyle: const CalendarStyle(
-                                  markersMaxCount: 3,
+                                  markersMaxCount: 4,
                                   markerDecoration: BoxDecoration(
                                     color: UAColors.red,
                                     shape: BoxShape.circle,
@@ -231,13 +331,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                           const SizedBox(height: 20),
 
-                          // Заголовок для списка заданий
+                          // Заголовок для выбранного дня
                           _selectedDay != null
                               ? Padding(
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 8.0),
                                   child: Text(
-                                    'Задания на ${DateFormat('dd MMMM yyyy').format(_selectedDay!)}',
+                                    'События на ${DateFormat('dd MMMM yyyy').format(_selectedDay!)}',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -247,34 +347,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 )
                               : const SizedBox.shrink(),
 
-                          // Список заданий на выбранный день
-                          _selectedDay != null
-                              ? _getEventsForDay(_selectedDay!).isNotEmpty
-                                  ? ListView.builder(
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      shrinkWrap: true,
-                                      itemCount: _getEventsForDay(_selectedDay!)
-                                          .length,
-                                      itemBuilder: (context, index) {
-                                        return _buildDeadlineCard(
-                                            _getEventsForDay(
-                                                _selectedDay!)[index]);
-                                      },
-                                    )
-                                  : const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(16.0),
-                                        child: Text(
-                                          'Нет заданий на этот день',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                              : const SizedBox.shrink(),
+                          // Занятия на выбранный день
+                          if (_selectedDay != null)
+                            ..._buildClassesForSelectedDay(),
+
+                          // Дедлайны на выбранный день
+                          if (_selectedDay != null)
+                            ..._buildDeadlinesForSelectedDay(),
                         ],
                       ),
           ],
@@ -283,14 +362,224 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  // Отображение занятий на выбранный день
+  List<Widget> _buildClassesForSelectedDay() {
+    final classes = _getClassesForDay(_selectedDay!);
+
+    if (classes.isEmpty) {
+      return [];
+    }
+
+    return [
+      const Padding(
+        padding: EdgeInsets.only(top: 16.0, bottom: 8.0),
+        child: Text(
+          'Занятия:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: UAColors.azurite,
+          ),
+        ),
+      ),
+      ...classes.map((course) => _buildClassCard(course)).toList(),
+      const SizedBox(height: 8),
+    ];
+  }
+
+  // Отображение дедлайнов на выбранный день
+  List<Widget> _buildDeadlinesForSelectedDay() {
+    final deadlines = _getDeadlinesForDay(_selectedDay!);
+
+    if (deadlines.isEmpty) {
+      return [];
+    }
+
+    return [
+      const Padding(
+        padding: EdgeInsets.only(top: 16.0, bottom: 8.0),
+        child: Text(
+          'Дедлайны:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: UAColors.azurite,
+          ),
+        ),
+      ),
+      ...deadlines.map((assignment) => _buildDeadlineCard(assignment)).toList(),
+    ];
+  }
+
+  // Карточка для отображения занятия
+  Widget _buildClassCard(Course course) {
+    // Получаем время занятия из строки формата "14:00-15:30"
+    String startTime = '';
+    String endTime = '';
+
+    if (course.lectureTime.contains('-')) {
+      final times = course.lectureTime.split('-');
+      startTime = times[0];
+      endTime = times[1];
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => _showCourseDetails(course),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: UAColors.blue.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.school,
+                  color: UAColors.blue,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      course.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: UAColors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${startTime} - ${endTime}',
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Показывает диалог с подробной информацией о курсе
+  void _showCourseDetails(Course course) {
+    // Получаем время занятия
+    String startTime = '';
+    String endTime = '';
+    if (course.lectureTime.contains('-')) {
+      final times = course.lectureTime.split('-');
+      startTime = times[0];
+      endTime = times[1];
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(course.title),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildInfoRow('Semester', course.semester),
+              _buildInfoRow('Days', course.weekdays.join(', ')),
+              _buildInfoRow('Time', '${startTime} - ${endTime}'),
+              const SizedBox(height: 16),
+              const Text(
+                'Lectures:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: UAColors.blue,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...course.lectures
+                  .map((lecture) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.circle,
+                              size: 10,
+                              color: UAColors.red,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(lecture)),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Вспомогательный метод для создания строки информации
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: UAColors.azurite,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Карточка для отображения дедлайна
   Widget _buildDeadlineCard(Assignment assignment) {
     // Получаем информацию о курсе
     final course = _coursesMap[assignment.courseId];
-    final courseName = course?.title ?? 'Неизвестный курс';
-
-    // Форматируем время дедлайна
-    final timeFormat = DateFormat('HH:mm');
-    final deadlineTime = timeFormat.format(assignment.deadline);
+    final courseName = course?.title ?? 'Unknown Course';
 
     // Определяем цвет карточки в зависимости от срочности
     Color statusColor;
@@ -308,81 +597,136 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: () => _showDeadlineDetails(assignment, courseName),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  statusIcon,
+                  color: statusColor,
+                  size: 24,
+                ),
               ),
-              child: Icon(
-                statusIcon,
-                color: statusColor,
-                size: 24,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      assignment.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: UAColors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      courseName,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (assignment.dateTime != null)
+                      Text(
+                        DateFormat('HH:mm').format(assignment.dateTime!),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    assignment.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: UAColors.blue,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    courseName,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Время: $deadlineTime',
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Вес: ${assignment.weight}%',
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: UAColors.azurite,
-              ),
-              onPressed: () {
-                // Действие при нажатии на задание
-              },
-            )
-          ],
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  // Показывает диалог с подробной информацией о дедлайне
+  void _showDeadlineDetails(Assignment assignment, String courseName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(assignment.title),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildInfoRow('Course', courseName),
+              _buildInfoRow('Weight', '${assignment.weight}%'),
+              _buildInfoRow(
+                  'Deadline',
+                  DateFormat('dd MMMM yyyy, HH:mm')
+                      .format(assignment.deadline)),
+              if (assignment.daysLeft != null)
+                _buildInfoRow(
+                  'Days Left',
+                  assignment.isOverdue ?? false
+                      ? 'Overdue'
+                      : '${assignment.daysLeft} ${assignment.daysLeft == 1 ? 'day' : 'days'}',
+                ),
+              const SizedBox(height: 16),
+              const Text(
+                'Description:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: UAColors.blue,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                assignment.body,
+                style: const TextStyle(
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // В будущем здесь можно добавить функционал отправки задания
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('This feature will be available soon!'),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: UAColors.red,
+            ),
+            child: const Text('Submit'),
+          ),
+        ],
       ),
     );
   }

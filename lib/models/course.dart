@@ -4,6 +4,9 @@ class Course {
   final String semester;
   final String professorId;
   final List<String> lectures;
+  final List<String> weekdays;
+  final String lectureTime;
+  final String? enrollmentId;
 
   Course({
     required this.id,
@@ -11,6 +14,9 @@ class Course {
     required this.semester,
     required this.professorId,
     required this.lectures,
+    this.weekdays = const [],
+    this.lectureTime = "",
+    this.enrollmentId,
   });
 
   factory Course.fromJson(Map<String, dynamic> json) {
@@ -20,6 +26,9 @@ class Course {
       semester: json['semester'] ?? '',
       professorId: json['professorId'] ?? '',
       lectures: List<String>.from(json['lectures'] ?? []),
+      weekdays: List<String>.from(json['weekdays'] ?? []),
+      lectureTime: json['lectureTime'] ?? '',
+      enrollmentId: json['enrollmentId'],
     );
   }
 
@@ -30,6 +39,9 @@ class Course {
       'semester': semester,
       'professorId': professorId,
       'lectures': lectures,
+      'weekdays': weekdays,
+      'lectureTime': lectureTime,
+      'enrollmentId': enrollmentId,
     };
   }
 }
