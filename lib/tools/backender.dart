@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:d2l_plus/models/course.dart';
+import 'package:d2l_plus/models/assignment.dart';
 
 class Backender {
   final String url =
@@ -263,6 +264,45 @@ class Backender {
       // Обрабатываем ошибки сети или другие исключения
       print('Error during password reset request: $e');
       throw Exception('Failed to request password reset: $e');
+    }
+  }
+
+  // Получение дедлайнов заданий пользователя
+  Future<List<Assignment>> getUserDeadlines(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$url/assignments/deadlines/user/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешный запрос
+        print('Deadlines retrieved successfully: ${response.body}');
+
+        // Парсим ответ в список заданий
+        final List<dynamic> deadlinesJson = jsonDecode(response.body);
+        List<Assignment> deadlines = deadlinesJson
+            .map((deadlineJson) => Assignment.fromJson(deadlineJson))
+            .toList();
+
+        // Сортируем задания по дедлайну (ближайшие сначала)
+        deadlines.sort((a, b) => a.deadline.compareTo(b.deadline));
+
+        return deadlines;
+      } else {
+        // Ошибка при получении дедлайнов
+        print(
+            'Failed to retrieve deadlines: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Error retrieving deadlines: $e');
+      throw Exception('Failed to retrieve deadlines: $e');
     }
   }
 }

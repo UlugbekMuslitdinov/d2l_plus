@@ -1,6 +1,9 @@
 import 'package:d2l_plus/constants/colors.dart';
 import 'package:d2l_plus/models/course.dart';
+import 'package:d2l_plus/models/assignment.dart';
 import 'package:d2l_plus/screens/available_courses_screen.dart';
+import 'package:d2l_plus/screens/calendar_screen.dart';
+import 'package:d2l_plus/screens/deadlines_screen.dart';
 import 'package:d2l_plus/screens/login_screen.dart';
 import 'package:d2l_plus/screens/register_screen.dart';
 import 'package:d2l_plus/tools/backender.dart';
@@ -97,12 +100,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final storage = SecureStorage();
-  final _backender = Backender();
-  List<Course> _courses = [];
-  bool _isLoading = true;
-  String _error = '';
   int _selectedIndex = 0;
+  final _backender = Backender();
+  final _storage = SecureStorage();
+  List<Course> _courses = [];
+  bool _isLoadingCourses = true;
+  String _coursesError = '';
 
   @override
   void initState() {
@@ -112,11 +115,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadUserCourses() async {
     try {
-      final userId = await storage.getUserId();
+      final userId = await _storage.getUserId();
       if (userId == null || userId.isEmpty) {
         setState(() {
-          _isLoading = false;
-          _error = 'User ID not found. Please log in again.';
+          _isLoadingCourses = false;
+          _coursesError = 'User ID not found';
         });
         return;
       }
@@ -124,12 +127,12 @@ class _HomePageState extends State<HomePage> {
       final courses = await _backender.getUserCourses(userId);
       setState(() {
         _courses = courses;
-        _isLoading = false;
+        _isLoadingCourses = false;
       });
     } catch (e) {
       setState(() {
-        _isLoading = false;
-        _error = 'Failed to load courses: ${e.toString()}';
+        _isLoadingCourses = false;
+        _coursesError = e.toString();
       });
     }
   }
@@ -141,21 +144,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _logout() async {
-    await storage.logOut();
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/');
-    }
-  }
-
-  void _openAvailableCourses() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AvailableCoursesScreen(
-          onCourseEnrolled: _loadUserCourses,
-        ),
-      ),
-    );
+    await _storage.logOut();
+    Navigator.pushReplacementNamed(context, '/');
   }
 
   @override
@@ -163,48 +153,73 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('D2L Plus'),
+        backgroundColor: UAColors.blue,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: 'Logout',
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
       body: _selectedIndex == 0
-          ? DashboardContent(courses: _courses)
+          ? _isLoadingCourses
+              ? const Center(child: CircularProgressIndicator())
+              : _coursesError.isNotEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Could not load courses: $_coursesError',
+                            style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _isLoadingCourses = true;
+                                _coursesError = '';
+                              });
+                              _loadUserCourses();
+                            },
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : DashboardContent(courses: _courses)
           : _selectedIndex == 1
               ? CoursesScreen(
                   courses: _courses,
-                  isLoading: _isLoading,
-                  error: _error,
+                  isLoading: _isLoadingCourses,
+                  error: _coursesError,
                   onRefresh: _loadUserCourses,
                 )
-              : const Center(
-                  child: Text('Other screens will be here'),
-                ),
+              : _selectedIndex == 2
+                  ? const DeadlinesScreen()
+                  : const CalendarScreen(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
-            label: 'Home',
+            label: 'Dashboard',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.book),
             label: 'Courses',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.assignment),
+            label: 'Deadlines',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Calendar',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
-          ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: UAColors.red,
-        unselectedItemColor: UAColors.azurite,
+        selectedItemColor: UAColors.blue,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
       ),
@@ -255,7 +270,7 @@ class CoursesScreen extends StatelessWidget {
                         null) {
                       context
                           .findAncestorStateOfType<_HomePageState>()!
-                          ._openAvailableCourses();
+                          ._onItemTapped(1);
                     }
                   },
                   icon: const Icon(Icons.add),
@@ -497,6 +512,48 @@ class DashboardContent extends StatefulWidget {
 }
 
 class _DashboardContentState extends State<DashboardContent> {
+  final _backender = Backender();
+  final _storage = SecureStorage();
+  List<Assignment> _deadlines = [];
+  Map<String, Course> _coursesMap = {};
+  bool _isLoadingDeadlines = true;
+  String _deadlinesError = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeadlines();
+  }
+
+  Future<void> _loadDeadlines() async {
+    try {
+      final userId = await _storage.getUserId();
+      if (userId == null || userId.isEmpty) {
+        setState(() {
+          _isLoadingDeadlines = false;
+          _deadlinesError = 'User ID not found';
+        });
+        return;
+      }
+
+      final deadlines = await _backender.getUserDeadlines(userId);
+
+      // Создаем Map для быстрого доступа к курсам по ID
+      final coursesMap = {for (var course in widget.courses) course.id: course};
+
+      setState(() {
+        _deadlines = deadlines;
+        _coursesMap = coursesMap;
+        _isLoadingDeadlines = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingDeadlines = false;
+        _deadlinesError = e.toString();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -533,10 +590,24 @@ class _DashboardContentState extends State<DashboardContent> {
             children: [
               _buildStatCard('Courses', widget.courses.length.toString(),
                   Icons.book, UAColors.red),
+              _buildStatCard('Deadlines', _deadlines.length.toString(),
+                  Icons.alarm, UAColors.azurite),
               _buildStatCard(
-                  'New', '3', Icons.notifications_active, UAColors.azurite),
-              _buildStatCard('Events', '2', Icons.event, UAColors.blue),
-              _buildStatCard('Tasks', '7', Icons.assignment, UAColors.oasis),
+                  'Urgent',
+                  _deadlines
+                      .where((d) => d.isUrgent ?? false)
+                      .length
+                      .toString(),
+                  Icons.priority_high,
+                  Colors.orange),
+              _buildStatCard(
+                  'Overdue',
+                  _deadlines
+                      .where((d) => d.isOverdue ?? false)
+                      .length
+                      .toString(),
+                  Icons.assignment_late,
+                  Colors.red),
             ],
           ),
 
@@ -612,6 +683,113 @@ class _DashboardContentState extends State<DashboardContent> {
           ],
 
           const SizedBox(height: 24),
+
+          // Секция ближайших дедлайнов
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Upcoming',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: UAColors.blue,
+                ),
+              ),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      // Переключаемся на вкладку Calendar
+                      if (context.findAncestorStateOfType<_HomePageState>() !=
+                          null) {
+                        context
+                            .findAncestorStateOfType<_HomePageState>()!
+                            ._onItemTapped(3);
+                      }
+                    },
+                    icon: const Icon(Icons.calendar_today, size: 16),
+                    label: const Text('Calendar'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: UAColors.azurite,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Переключаемся на вкладку Deadlines
+                      if (context.findAncestorStateOfType<_HomePageState>() !=
+                          null) {
+                        context
+                            .findAncestorStateOfType<_HomePageState>()!
+                            ._onItemTapped(2);
+                      }
+                    },
+                    child: const Text('View All'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Отображение ближайших дедлайнов
+          _isLoadingDeadlines
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : _deadlinesError.isNotEmpty
+                  ? Center(
+                      child: Text(
+                        'Could not load deadlines: $_deadlinesError',
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : _deadlines.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No upcoming deadlines. You are all caught up!',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: _deadlines.length > 2
+                              ? 2
+                              : _deadlines
+                                  .length, // Показываем только до 2 дедлайнов
+                          itemBuilder: (context, index) {
+                            return _buildDeadlineCard(_deadlines[index]);
+                          },
+                        ),
+
+          // Кнопка "Show More" отображается, если есть больше 2 дедлайнов
+          if (_deadlines.length > 2) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: OutlinedButton(
+                onPressed: () {
+                  // Переключаемся на вкладку Deadlines
+                  if (context.findAncestorStateOfType<_HomePageState>() !=
+                      null) {
+                    context
+                        .findAncestorStateOfType<_HomePageState>()!
+                        ._onItemTapped(2);
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: UAColors.azurite,
+                ),
+                child: const Text('Show More Deadlines'),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
           const Text(
             'Recent Activity',
             style: TextStyle(
@@ -633,6 +811,97 @@ class _DashboardContentState extends State<DashboardContent> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDeadlineCard(Assignment assignment) {
+    // Получаем информацию о курсе
+    final course = _coursesMap[assignment.courseId];
+    final courseName = course?.title ?? 'Unknown Course';
+
+    // Определяем цвет карточки в зависимости от срочности
+    Color statusColor;
+    IconData statusIcon;
+
+    if (assignment.isOverdue ?? false) {
+      statusColor = Colors.red;
+      statusIcon = Icons.error_outline;
+    } else if (assignment.isUrgent ?? false) {
+      statusColor = Colors.orange;
+      statusIcon = Icons.warning_amber_outlined;
+    } else {
+      statusColor = UAColors.azurite;
+      statusIcon = Icons.access_time;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () {
+          // Переход на вкладку дедлайнов
+          if (context.findAncestorStateOfType<_HomePageState>() != null) {
+            context.findAncestorStateOfType<_HomePageState>()!._onItemTapped(2);
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  statusIcon,
+                  color: statusColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      assignment.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: UAColors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      courseName,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Due in ${assignment.daysLeft ?? 0} days',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
