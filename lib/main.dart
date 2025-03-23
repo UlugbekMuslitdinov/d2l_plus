@@ -1,5 +1,6 @@
 import 'package:d2l_plus/constants/colors.dart';
 import 'package:d2l_plus/models/course.dart';
+import 'package:d2l_plus/screens/available_courses_screen.dart';
 import 'package:d2l_plus/screens/login_screen.dart';
 import 'package:d2l_plus/screens/register_screen.dart';
 import 'package:d2l_plus/tools/backender.dart';
@@ -146,6 +147,17 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _openAvailableCourses() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AvailableCoursesScreen(
+          onCourseEnrolled: _loadUserCourses,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -226,13 +238,34 @@ class CoursesScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'My Courses',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: UAColors.blue,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'My Courses',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: UAColors.blue,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (context.findAncestorStateOfType<_HomePageState>() !=
+                        null) {
+                      context
+                          .findAncestorStateOfType<_HomePageState>()!
+                          ._openAvailableCourses();
+                    }
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Enroll'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: UAColors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             const Text(
