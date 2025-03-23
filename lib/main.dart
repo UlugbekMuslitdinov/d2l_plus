@@ -3,6 +3,7 @@ import 'package:d2l_plus/models/course.dart';
 import 'package:d2l_plus/models/assignment.dart';
 import 'package:d2l_plus/screens/available_courses_screen.dart';
 import 'package:d2l_plus/screens/calendar_screen.dart';
+import 'package:d2l_plus/screens/chat_bot_screen.dart';
 import 'package:d2l_plus/screens/deadlines_screen.dart';
 import 'package:d2l_plus/screens/login_screen.dart';
 import 'package:d2l_plus/screens/register_screen.dart';
@@ -238,7 +239,9 @@ class _HomePageState extends State<HomePage> {
                 )
               : _selectedIndex == 2
                   ? const DeadlinesScreen()
-                  : const CalendarScreen(),
+                  : _selectedIndex == 3
+                      ? const CalendarScreen()
+                      : const ChatBotScreen(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -256,6 +259,10 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Calendar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Assistant',
           ),
         ],
         currentIndex: _selectedIndex,

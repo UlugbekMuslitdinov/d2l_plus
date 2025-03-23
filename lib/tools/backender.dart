@@ -555,4 +555,52 @@ class Backender {
       return false;
     }
   }
+
+  // Отправка сообщения к ИИ-ассистенту
+  Future<Map<String, dynamic>> sendAssistantMessage({
+    required String userId,
+    required String prompt,
+    List<Map<String, String>>? messages,
+  }) async {
+    try {
+      final Map<String, dynamic> requestBody = {
+        'userId': userId,
+        'prompt': prompt,
+      };
+
+      // Если есть история сообщений, добавляем её
+      if (messages != null && messages.isNotEmpty) {
+        requestBody['messages'] = messages;
+      }
+
+      final response = await http.post(
+        Uri.parse('$url/assistant/chat'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      // Проверяем статус ответа
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Успешный запрос
+        print('Ответ ассистента получен: ${response.body}');
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return responseData;
+      } else {
+        // Ошибка при получении ответа
+        print(
+            'Ошибка при запросе к ассистенту: ${response.statusCode} - ${response.body}');
+        return {
+          'message':
+              'Произошла ошибка при получении ответа. Пожалуйста, попробуйте позже.'
+        };
+      }
+    } catch (e) {
+      // Обрабатываем ошибки сети или другие исключения
+      print('Ошибка при обращении к ассистенту: $e');
+      throw Exception('Не удалось получить ответ от ассистента: $e');
+    }
+  }
 }
