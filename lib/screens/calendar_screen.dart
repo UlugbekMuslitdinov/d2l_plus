@@ -274,7 +274,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(8.0),
-                              child: TableCalendar(
+                              child: TableCalendar<dynamic>(
                                 firstDay: DateTime.utc(2023, 1, 1),
                                 lastDay: DateTime.utc(2030, 12, 31),
                                 focusedDay: _focusedDay,
@@ -299,10 +299,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 },
                                 calendarStyle: const CalendarStyle(
                                   markersMaxCount: 4,
-                                  markerDecoration: BoxDecoration(
-                                    color: UAColors.red,
-                                    shape: BoxShape.circle,
-                                  ),
                                   todayDecoration: BoxDecoration(
                                     color: UAColors.azurite,
                                     shape: BoxShape.circle,
@@ -311,6 +307,83 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     color: UAColors.blue,
                                     shape: BoxShape.circle,
                                   ),
+                                ),
+                                calendarBuilders: CalendarBuilders(
+                                  markerBuilder: (context, date, events) {
+                                    if (events.isEmpty) return const SizedBox();
+
+                                    // Проверяем, есть ли на эту дату занятия и дедлайны
+                                    final hasClasses =
+                                        _getClassesForDay(date).isNotEmpty;
+                                    final hasDeadlines =
+                                        _getDeadlinesForDay(date).isNotEmpty;
+
+                                    // Если есть и занятия и дедлайны, показываем два маркера
+                                    if (hasClasses && hasDeadlines) {
+                                      return Positioned(
+                                        bottom: 1,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 1),
+                                              decoration: const BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: UAColors.blue,
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 1),
+                                              decoration: const BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: UAColors.red,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+
+                                    // Если есть только занятия, показываем синий маркер
+                                    else if (hasClasses) {
+                                      return Positioned(
+                                        bottom: 1,
+                                        child: Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: UAColors.blue,
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    // Если есть только дедлайны, показываем красный маркер
+                                    else if (hasDeadlines) {
+                                      return Positioned(
+                                        bottom: 1,
+                                        child: Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: UAColors.red,
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    return const SizedBox();
+                                  },
                                 ),
                                 headerStyle: const HeaderStyle(
                                   formatButtonDecoration: BoxDecoration(
